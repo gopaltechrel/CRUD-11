@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart CRUD + Favorite ❤️</title>
+  <style>
+    body {
+      font-family: "Poppins", sans-serif;
+      background: linear-gradient(135deg, #d4fc79, #96e6a1);
+      margin: 0;
+      padding: 40px;
+    }
+
+    h2 {
+      text-align: center;
+      color: #2c3e50;
+    }
+
+    .container {
+      background: #fff;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      max-width: 950px;
+      margin: auto;
+      transition: 0.3s;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    input[type="text"], input[type="email"] {
+      flex: 1;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      transition: 0.3s;
+    }
+
+    input:focus {
+      border-color: #2ecc71;
+      box-shadow: 0 0 5px #2ecc71;
+      outline: none;
+    }
+
+    button {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .add-btn {
+      background: #27ae60;
+      color: #fff;
+    }
+    .add-btn:hover {
+      background: #1e8449;
+    }
+
+    .update-btn {
+      background: #3498db;
+      color: #fff;
+    }
+
+    .delete-btn {
+      background: #e74c3c;
+      color: #fff;
+    }
+
+    .favorite {
+      font-size: 22px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .favorite.active {
+      color: red;
+    }
+    .favorite:hover {
+      transform: scale(1.2);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid #ccc;
+      text-align: center;
+    }
+
+    th {
+      background: #2c3e50;
+      color: #fff;
+    }
+
+    .search-bar {
+      text-align: center;
+      margin-bottom: 15px;
+    }
+
+    .search-bar input {
+      padding: 8px;
+      width: 300px;
+      border-radius: 6px;
+      border: 1px solid #bbb;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: bold;
+      margin-top: 20px;
+      color: #2c3e50;
+    }
+  </style>
+</head>
+<body>
+  <h2>🛒 CRUD with Favorite ❤️ (No Duplicates)</h2>
+
+  <div class="container">
+    <div class="input-group">
+      <input type="text" id="name" placeholder="Enter Name 😎">
+      <input type="email" id="email" placeholder="Enter Email 📧">
+      <button class="add-btn" onclick="addOrUpdateUser()">Add</button>
+    </div>
+
+    <div class="search-bar">
+      <input type="text" id="search" placeholder="🔍 Search by name or email...">
+    </div>
+
+    <div class="section-title">⭐ Favorite Users</div>
+    <table id="favTable">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>❤️</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Actions ⚙️</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="section-title">👥 All Users</div>
+    <table id="userTable">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>❤️</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Actions ⚙️</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    let users = JSON.parse(localStorage.getItem("users")) || [];
+    let editIndex = -1;
+
+    const saveData = () => localStorage.setItem("users", JSON.stringify(users));
+
+    const renderTables = (filter = "") => {
+      const favBody = document.querySelector("#favTable tbody");
+      const userBody = document.querySelector("#userTable tbody");
+      favBody.innerHTML = "";
+      userBody.innerHTML = "";
+
+      const filteredUsers = users.filter(
+        (u) =>
+          u.name.toLowerCase().includes(filter.toLowerCase()) ||
+          u.email.toLowerCase().includes(filter.toLowerCase())
+      );
+
+      const favorites = filteredUsers.filter((u) => u.favorite);
+      const others = filteredUsers.filter((u) => !u.favorite);
+
+      const renderRows = (arr, tbody) => {
+        arr.forEach((user, index) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${index + 1}</td>
+            <td><span class="favorite ${user.favorite ? "active" : ""}" onclick="toggleFavorite(${user.id})">❤️</span></td>
+            <td>${user.name}</td>
+            <td>${user.email}</td>
+            <td>
+              <button class="update-btn" onclick="editUser(${user.id})">Edit</button>
+              <button class="delete-btn" onclick="deleteUser(${user.id})">Delete</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      };
+
+      renderRows(favorites, favBody);
+      renderRows(others, userBody);
+    };
+
+    const addOrUpdateUser = () => {
+      const name = document.getElementById("name").value.trim();
+      const email = document.getElementById("email").value.trim();
+      if (!name || !email) return alert("⚠️ Please enter both name and email.");
+
+      // Check duplicate
+      const isDuplicate = users.some(
+        (u, i) => (u.name.toLowerCase() === name.toLowerCase() || u.email.toLowerCase() === email.toLowerCase()) && i !== editIndex
+      );
+      if (isDuplicate) {
+        alert("🚫 Duplicate name or email found!");
+        return;
+      }
+
+      if (editIndex === -1) {
+        users.push({ id: Date.now(), name, email, favorite: false });
+      } else {
+        users[editIndex].name = name;
+        users[editIndex].email = email;
+        editIndex = -1;
+        document.querySelector(".add-btn").textContent = "Add";
+      }
+
+      saveData();
+      renderTables();
+      document.getElementById("name").value = "";
+      document.getElementById("email").value = "";
+    };
+
+    const editUser = (id) => {
+      const user = users.find((u) => u.id === id);
+      document.getElementById("name").value = user.name;
+      document.getElementById("email").value = user.email;
+      editIndex = users.findIndex((u) => u.id === id);
+      document.querySelector(".add-btn").textContent = "Update";
+    };
+
+    const deleteUser = (id) => {
+      users = users.filter((u) => u.id !== id);
+      saveData();
+      renderTables(document.getElementById("search").value);
+    };
+
+    const toggleFavorite = (id) => {
+      const user = users.find((u) => u.id === id);
+      user.favorite = !user.favorite;
+      saveData();
+      renderTables(document.getElementById("search").value);
+    };
+
+    document.getElementById("search").addEventListener("input", (e) => {
+      renderTables(e.target.value);
+    });
+
+    renderTables();
+  </script>
+</body>
+</html>
